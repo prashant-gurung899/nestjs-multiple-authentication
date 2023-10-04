@@ -12,10 +12,11 @@ import { UserService } from 'src/user/user.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { TOKENS } from 'config';
-import { Prisma, User } from '@prisma/client';
+import { Prisma, Role, User } from '@prisma/client';
 import * as argon from 'argon2';
 import { LoginDto } from './dto/login.dto';
 import { CurrentUser } from 'src/decorator';
+import { Request, Response } from 'express';
 
 @Injectable()
 export class AuthService {
@@ -140,42 +141,38 @@ export class AuthService {
   }
 
   // Sign in/up with google
-  async WithGoogle(req) {
+  async withGoogle(req: Request, res: Response) {
     try {
-      // console.log(req.user.profile);
-      const isExisUser = await this.prisma.user.findUnique({
-        where: { email: req.user.profile.emails[0].value },
+      console.log(req.user);
+      // If user already exists, then return user
+      // else create new user, then return new user
+      const user = await this.prisma.user.upsert({
+        where: { email: req.user['email'] },
+        update: {},
+        create: {
+          username: '',
+          email: req.user['email'],
+          googleId: req.user['googleId'],
+          password: '',
+          role: Role.USER,
+        },
       });
 
-      if (isExisUser) {
-        return isExisUser;
-      } else {
-        const newUser = await this.prisma.user.create({
-          data: {
-            // username: req.user.profile.displayName,
-            username: req.user.profile.firstName,
-            email: req.user.profile.emails[0].value,
-            googleId: req.user.profile.id,
-            password: '',
-          },
-        });
-        return newUser;
-      }
+      // Generate Jwt Tokens
+      const jwtTokens = await this.generateToken(user);
+
+      // Setting Jwt Tokens In Cookie of Browser
+      res.cookie('at_token', jwtTokens.access_token);
+      res.cookie('rt_token', jwtTokens.refresh_token);
+
+      // Redirecting to the '/' after successful signinwithgoogle
+      res.redirect('/');
     } catch (error) {
       console.error('Error in WithGoogle:', error);
-      throw new Error('Failed');
+      throw new HttpException(
+        'Something Went Wrong',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
-
-  // WithGoogle(req) {
-  //   if (!req.user) {
-  //     return 'No user from google';
-  //   } else {
-  //     return {
-  //       message: 'User Info from Google',
-  //       user: req.user,
-  //       // email: req.user.email,
-  //     };
-  //   }
-  // }
 }
