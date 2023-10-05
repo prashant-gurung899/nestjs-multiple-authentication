@@ -62,12 +62,12 @@ export class AuthService {
     const user = await this.userService.findOneByEmail(email);
 
     // Verifying The Password
-    const hashPassword = await argon.verify(user.password, password);
+    const hashPassword = await argon.verify(user.data.password, password);
 
     if (!user || !hashPassword)
       throw new HttpException('Invalid Credentials', HttpStatus.CONFLICT);
 
-    return user;
+    return user.data;
   }
 
   // Password Validation
@@ -137,7 +137,10 @@ export class AuthService {
         },
       });
     }
-    return { access_token, refresh_token };
+    return {
+      message: 'User Logged In Successfully',
+      data: { access_token, refresh_token },
+    };
   }
 
   // Sign in/up with google

@@ -1,4 +1,4 @@
-import { HttpException, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -47,9 +47,12 @@ export class UserService {
           ...createUserDto,
         },
       });
-      return newUser;
+      return { message: 'Created User Successfully', data: newUser };
     } catch (err) {
-      throw new HttpException(err, 500);
+      throw new HttpException(
+        'Something Went Wrong Creating User',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
   findAll() {
@@ -61,35 +64,59 @@ export class UserService {
     // }
   }
 
-  findOne(id: number) {
+  async findOne(id: number) {
     try {
-      return this.prisma.user.findUnique({ where: { id: id } });
+      const user = await this.prisma.user.findUnique({ where: { id: id } });
+
+      return { message: 'Found User', data: user };
     } catch (err) {
       console.log(err);
+      throw new HttpException(
+        'Something Went Wrong Finding User',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
   async findOneByEmail(email: string) {
     try {
       const user = await this.prisma.user.findUnique({ where: { email } });
       if (!user) throw new HttpException('User not found', 404);
-      return user;
+      return { message: 'Found User', data: user };
     } catch (err) {
-      throw new HttpException(err, 500);
+      throw new HttpException(
+        'Something Went Wrong Finding User',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
-  update(id: number, updateUserDto: UpdateUserDto) {
+  async update(id: number, updateUserDto: UpdateUserDto) {
     try {
-      return this.prisma.user.update({
+      const user = await this.prisma.user.update({
         data: updateUserDto,
         where: { id: id },
       });
+
+      return { message: 'User Updated Succesfully', data: user };
     } catch (err) {
       console.log(err);
+      throw new HttpException(
+        'Something Went Wrong Updating User',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
-  remove(id: number) {
-    return this.prisma.user.delete({ where: { id: id } });
+  async remove(id: number) {
+    try {
+      await this.prisma.user.delete({ where: { id: id } });
+
+      return { message: 'User Deleted Successfully' };
+    } catch (e) {
+      throw new HttpException(
+        'Something Went Wrong Deleting User',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 }
